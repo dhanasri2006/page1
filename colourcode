@@ -1,0 +1,53 @@
+import org.opencv.core.*;
+import org.opencv.videoio.VideoCapture;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.imgcodecs.Imgcodecs;
+
+public class SimpleColorCode {
+    static { System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
+
+    public static void main(String[] args) {
+        VideoCapture cap = new VideoCapture(0); // 0 = default camera
+        if (!cap.isOpened()) {
+            System.out.println("Camera not found!");
+            return;
+        }
+
+        Mat frame = new Mat();
+        cap.read(frame);
+
+        if (frame.empty()) {
+            System.out.println("No frame captured!");
+            cap.release();
+            return;
+        }
+
+        // Center square ROI
+        int h = frame.rows(), w = frame.cols();
+        int box = Math.min(h, w) / 4;
+        int x1 = w/2 - box/2, y1 = h/2 - box/2;
+        Rect roiRect = new Rect(x1, y1, box, box);
+        Mat roi = new Mat(frame, roiRect);
+
+        // Convert to HSV and calculate mean color
+        Mat hsv = new Mat();
+        Imgproc.cvtColor(roi, hsv, Imgproc.COLOR_BGR2HSV);
+        Scalar mean = Core.mean(hsv);
+
+        double H = mean.val[0];
+        double S = mean.val[1];
+        double V = mean.val[2];
+
+        String triage = "UNKNOWN";
+        if ((H <= 10 || H >= 170) && S > 70 && V > 50) triage = "RED";
+        else if (H >= 18 && H <= 40 && S > 80 && V > 80) triage = "YELLOW";
+        else if (H >= 41 && H <= 90 && S > 60 && V > 60) triage = "GREEN";
+
+        System.out.println("Detected Triage Colour = " + triage);
+
+        // Save captured image 
+        Imgcodecs.imwrite("captured.jpg", frame);
+
+        cap.release();
+    }
+}
